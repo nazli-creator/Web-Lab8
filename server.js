@@ -83,6 +83,16 @@ app.get('/api/stats', (req, res) => {
   res.json({ requestsServed });
 });
 
+// ---- 404 fallback: registered LAST so it never hides a real route ----
+// app.use without a path works in Express 5 (no '*' wildcard needed).
+app.use((req, res) => {
+  if (req.path.startsWith('/api')) {
+    res.status(404).json({ error: 'Not found' });
+  } else {
+    res.status(404).send('<h1>404</h1><p>The page was not found.</p>');
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
