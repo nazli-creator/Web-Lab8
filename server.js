@@ -39,6 +39,50 @@ app.use(requestCounter);
 // GET / serves public/index.html automatically; styles.css and app.js too.
 app.use(express.static(PUBLIC_DIR));
 
+// ---- Routes ----
+app.get('/hello', (req, res) => {
+  res.type('text/plain').send("Hello from Nazlı's server");
+});
+
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send(ROBOTS_TXT);
+});
+
+app.get('/old-page', (req, res) => {
+  res.redirect('/hello');
+});
+
+app.get('/api/courses', (req, res) => {
+  res.json(COURSES);
+});
+
+app.get('/api/status', (req, res) => {
+  res.json({
+    status: 'ok',
+    nodeVersion: process.version,
+    uptimeSeconds: Math.round(process.uptime()),
+  });
+});
+
+app.get('/api/headers', (req, res) => {
+  res.json({
+    'user-agent': req.get('User-Agent') ?? null,
+    accept: req.get('Accept') ?? null,
+  });
+});
+
+app.post('/api/subscribe', (req, res) => {
+  res.status(201).json({ subscribed: true });
+});
+
+app.get('/api/admin', (req, res) => {
+  res.status(403).json({ error: 'Forbidden' });
+});
+
+app.get('/api/stats', (req, res) => {
+  res.json({ requestsServed });
+});
+
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
