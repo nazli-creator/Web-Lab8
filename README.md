@@ -184,3 +184,25 @@ Keep-Alive: timeout=5
 {"requestsServed":10}
 ```
 
+## Reasoning questions (Section 8)
+
+1. **Route order.** I moved the 404 fallback above the static middleware and the routes. Every request, including `GET /`, `/hello` and `/api/courses`, then returned `404 Not Found`, even though the routes still exist. Express runs handlers in registration order and the first one that sends a response wins; the fallback matches everything, so the real routes were never reached. That is why the fallback must be registered last.
+2. **Middleware.** I removed `next()` from the logger. The server printed the log line for `GET /hello` and nothing else, and the request never got a response: `curl` hung until I stopped it after 3 seconds (the browser would show a spinning tab and finally time out). Without `next()` (and without sending a response) the request chain stops in the logger, so the counter, the routes and the 404 fallback never run.
+3. **Status codes.** `POST /api/subscribe` creates something (a subscription), and `201 Created` tells the client precisely that, while `200` only says "OK". A missing page is `404` because the status code is what clients, browsers, caches and search engines read to know the resource does not exist; a `200` with an error text would make them treat the error page as a valid page.
+4. **Configuration.** Hosting platforms and other developers choose the port through the environment, and a hard-coded `3000` would crash if that port is already used or the platform assigns a different one. `process.env.PORT || 3000` takes the configured port and falls back to 3000 on a local machine.
+5. **Dependencies.** `node_modules` is large, can be regenerated, and may contain platform-specific files, so it is excluded with `.gitignore`. `package.json` and `package-lock.json` record exactly which versions are needed. A teammate clones the repository and runs `npm install`, then `npm start`.
+6. **Same origin.** If the page is opened from disk (`file:///.../index.html`), its origin is `file://` and the relative URL `/api/courses` would point to a file path, not to the server (and even with an absolute `http://localhost:3000/...` URL the browser would block reading the response because the origins differ). The restriction is called the **same-origin policy**; cross-origin access is only possible when the server allows it with CORS headers. Serving the page from the same server avoids the issue.
+
+## Self-study notes
+
+* **Node version and uptime.** From the Node `process` documentation: `process.version` returns the Node version string (e.g. `v24.15.0`) and `process.uptime()` returns the number of seconds the process has been running (a float, so I use `Math.round`). Used in `/api/status`.
+* **Plain-text content type.** From the Express docs for `res.type()`: `res.type('text/plain').send(...)` sets the `Content-Type` header to `text/plain; charset=utf-8`. Without it, `res.send` of a string would answer `text/html`. Used in `/robots.txt`.
+* **Pretty JSON in the browser.** `JSON.stringify(value, null, 2)` formats JSON with 2-space indentation (MDN). In `app.js` I parse the response text and stringify it again into a `<pre>` element; if parsing fails (e.g. the HTML 404 page) the raw text is shown.
+* **Other things researched:** `import.meta.dirname` (Node ≥ 20.11) gives the folder of the current ES module, replacing CommonJS `__dirname`; I use it so `express.static` finds `public/` no matter which folder the server is started from. In Express 5, `app.get('*', ...)` is invalid, so the fallback is a path-less `app.use((req, res) => ...)` registered last.
+
+## Challenges I faced
+
+* Replacing `__dirname` (not available in ES modules) with `import.meta.dirname`.
+* Understanding that the 404 fallback must be last, and that a missing `next()` silently hangs requests.
+* Express 5 no longer accepts the `*` wildcard, so the fallback uses `app.use` without a path.
+* Deciding where the counter goes and what it counts; I count everything because it sits before all other handlers.
